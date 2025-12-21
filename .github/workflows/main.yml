@@ -62,7 +62,7 @@ jobs:
           
       - name: Commit and Push - First 25 folders
         run: |
-          folders=$(find ${{ env.TARGET_DIR }}/2025 -mindepth 1 -maxdepth 1 -type d | sort | head -25)
+          folders=$(find ${{ env.TARGET_DIR }} -mindepth 2 -maxdepth 2 -type d | sort | head -25)
           if [ -z "$folders" ]; then
             echo "No folders found"
             exit 0
@@ -80,7 +80,7 @@ jobs:
           
       - name: Commit and Push - Remaining folders
         run: |
-          folders=$(find ${{ env.TARGET_DIR }}/2025 -mindepth 1 -maxdepth 1 -type d | sort | tail -n +26)
+          folders=$(find ${{ env.TARGET_DIR }} -mindepth 2 -maxdepth 2 -type d | sort | tail -n +26)
           if [ -z "$folders" ]; then
             echo "No remaining folders"
             exit 0
