@@ -1,0 +1,97 @@
+name: Update Repo
+on:
+  workflow_dispatch:
+    inputs:
+      convert_count:
+        description: 'Number of EPUB files to convert to AZW3'
+        required: false
+        default: '2'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - 'all'
+env:
+  TARGET_DIR: 'TE'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xdg-utils xz-utils
+          sudo apt-get install -y libxcb-cursor0 libxcb-xinerama0 libegl1 libopengl0
+          
+      - name: Install Calibre
+        run: |
+          sudo -v && wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sudo sh /dev/stdin
+          
+      - name: Download zip file
+        run: |
+          git clone https://gitlab.com/Monkfishare/2025.git temp-repo
+          cp -R temp-repo/${{ env.TARGET_DIR }} .
+          rm -rf temp-repo
+          
+      - name: Convert EPUB to AZW3
+        run: |
+          if [ "${{ github.event.inputs.convert_count }}" = "all" ]; then
+            find ${{ env.TARGET_DIR }} -name "*.epub" -type f | sort -r | while read file; do
+              dir=$(dirname "$file")
+              basename=$(basename "$file" .epub)
+              output="$dir/$basename.azw3"
+              ebook-convert "$file" "$output"
+            done
+          else
+            find ${{ env.TARGET_DIR }} -name "*.epub" -type f | sort -r | head -${{ github.event.inputs.convert_count }} | while read file; do
+              dir=$(dirname "$file")
+              basename=$(basename "$file" .epub)
+              output="$dir/$basename.azw3"
+              ebook-convert "$file" "$output"
+            done
+          fi
+          
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+      - name: Commit and Push - First 25 folders
+        run: |
+          folders=$(find ${{ env.TARGET_DIR }}/2025 -mindepth 1 -maxdepth 1 -type d | sort | head -25)
+          if [ -z "$folders" ]; then
+            echo "No folders found"
+            exit 0
+          fi
+          for folder in $folders; do
+            git add "$folder"
+          done
+          if git diff --staged --quiet; then
+            echo "No changes in first 25 folders"
+          else
+            git commit -m "Initial commit"
+            git push origin HEAD:${{ github.ref }}
+            echo "Successfully pushed first 25 folders"
+          fi
+          
+      - name: Commit and Push - Remaining folders
+        run: |
+          folders=$(find ${{ env.TARGET_DIR }}/2025 -mindepth 1 -maxdepth 1 -type d | sort | tail -n +26)
+          if [ -z "$folders" ]; then
+            echo "No remaining folders"
+            exit 0
+          fi
+          for folder in $folders; do
+            git add "$folder"
+          done
+          if git diff --staged --quiet; then
+            echo "No changes in remaining folders"
+          else
+            git commit -m "Initial commit"
+            git push origin HEAD:${{ github.ref }}
+            echo "Successfully pushed remaining folders"
+          fi
