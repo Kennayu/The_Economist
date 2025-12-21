@@ -14,6 +14,7 @@ on:
           - 'all'
 env:
   TARGET_DIR: 'TE'
+  FOLDER_BATCH_THRESHOLD: 30
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -60,38 +61,63 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-      - name: Commit and Push - First 25 folders
+      - name: Commit and Push - First batch
         run: |
-          folders=$(find ${{ env.TARGET_DIR }} -mindepth 2 -maxdepth 2 -type d | sort | head -25)
-          if [ -z "$folders" ]; then
+          all_folders=$(find ${{ env.TARGET_DIR }} -mindepth 2 -maxdepth 2 -type d | sort)
+          total=$(echo "$all_folders" | wc -l)
+          
+          if [ $total -eq 0 ]; then
             echo "No folders found"
             exit 0
           fi
-          for folder in $folders; do
-            git add "$folder"
-          done
-          if git diff --staged --quiet; then
-            echo "No changes in first 25 folders"
+          
+          if [ $total -le ${{ env.FOLDER_BATCH_THRESHOLD }} ]; then
+            echo "Total folders: $total, pushing all at once"
+            for folder in $all_folders; do
+              git add "$folder"
+            done
+            if git diff --staged --quiet; then
+              echo "No changes"
+            else
+              git commit -m "Initial commit"
+              git push origin HEAD:${{ github.ref }}
+              echo "Successfully pushed all $total folders"
+            fi
           else
-            git commit -m "Initial commit"
-            git push origin HEAD:${{ github.ref }}
-            echo "Successfully pushed first 25 folders"
+            half=$((total / 2))
+            folders=$(echo "$all_folders" | head -$half)
+            for folder in $folders; do
+              git add "$folder"
+            done
+            if git diff --staged --quiet; then
+              echo "No changes in first batch"
+            else
+              git commit -m "Initial commit"
+              git push origin HEAD:${{ github.ref }}
+              echo "Successfully pushed first batch ($half folders)"
+            fi
           fi
           
-      - name: Commit and Push - Remaining folders
+      - name: Commit and Push - Second batch
         run: |
-          folders=$(find ${{ env.TARGET_DIR }} -mindepth 2 -maxdepth 2 -type d | sort | tail -n +26)
-          if [ -z "$folders" ]; then
-            echo "No remaining folders"
+          all_folders=$(find ${{ env.TARGET_DIR }} -mindepth 2 -maxdepth 2 -type d | sort)
+          total=$(echo "$all_folders" | wc -l)
+          
+          if [ $total -le ${{ env.FOLDER_BATCH_THRESHOLD }} ]; then
+            echo "Already pushed all folders in first batch"
             exit 0
           fi
+          
+          half=$((total / 2))
+          folders=$(echo "$all_folders" | tail -n +$((half + 1)))
           for folder in $folders; do
             git add "$folder"
           done
+          
           if git diff --staged --quiet; then
-            echo "No changes in remaining folders"
+            echo "No changes in second batch"
           else
             git commit -m "Initial commit"
             git push origin HEAD:${{ github.ref }}
-            echo "Successfully pushed remaining folders"
+            echo "Successfully pushed second batch ($((total - half)) folders)"
           fi
