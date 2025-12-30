@@ -1,5 +1,8 @@
 # The Economist
 ## 🎁[podcast](https://monkfishare.gitlab.io/econaudio)
+<img width="297" height="312" alt="image" src="https://github.com/user-attachments/assets/76a0676b-6fea-4364-9cb7-63008eddb6fb" />
+
+
 ## Disclaimer
 
 This repository deploys Calibre CLI (Command Line Interface) with GitHub Actions to automatically scrape content from The Economist's weekly editions. The purpose of this project is for personal and non-commercial use.
